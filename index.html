@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piltong Note - Pro (Bible Edition)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=Noto+Serif+KR:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #f4f4f7;
+            --sidebar-color: #ffffff;
+            --accent-color: #4a90e2;
+            --border-color: #d1d1d1;
+            --text-main: #333;
+            --note-bg: #ffffff; 
+            --note-text: #000000;
+            --note-line: #e8e8e8;
+        }
+
+        body { margin: 0; font-family: 'Pretendard', sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background-color 0.3s; }
+        header { background-color: #2c3e50; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        .header-btns { display: flex; align-items: center; }
+        .header-btns button { background-color: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; margin-left: 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        
+        .btn-bible { background-color: #9b59b6 !important; font-weight: bold; }
+        .btn-bible:hover { background-color: #8e44ad !important; }
+        .btn-highlight { background: linear-gradient(135deg, #f39c12, #e67e22) !important; font-weight: bold; box-shadow: 0 2px 8px rgba(243, 156, 18, 0.5); }
+        .btn-highlight:hover { transform: scale(1.05); }
+        .btn-print { background-color: #7f8c8d !important; }
+        .btn-focus { background-color: #27ae60 !important; font-weight: bold; }
+
+        .toolbar { background-color: var(--sidebar-color); border-bottom: 1px solid var(--border-color); padding: 10px 20px; display: flex; flex-direction: column; gap: 10px; }
+        .meta-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .meta-info input, .meta-info select { padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; }
+        .title-input { flex-grow: 1; font-weight: bold; min-width: 150px; }
+
+        .mode-tools { display: flex; gap: 10px; align-items: center; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
+        .btn-group { display: flex; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
+        .btn-group button { background: white; border: none; padding: 8px 12px; cursor: pointer; border-right: 1px solid #ddd; }
+        .btn-group button.active { background: var(--accent-color); color: white; }
+        
+        .dynamic-controls button, .dynamic-controls select, .dynamic-controls input[type="color"] { background: white; border: 1px solid var(--border-color); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 2px; font-family: inherit; font-size: 13px; outline: none; vertical-align: middle; }
+        #draw-tools button.active-tool { background: #d0e4fb; border-color: var(--accent-color); font-weight: bold; }
+
+        main { flex-grow: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; background: #e5e5e5; overflow: hidden; }
+        .page-container { width: 100%; max-width: 1000px; height: 100%; background-color: var(--note-bg); padding: 40px; box-sizing: border-box; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; transition: padding 0.3s, margin 0.3s; }
+
+        .editor-wrapper { position: relative; width: 100%; flex-grow: 1; overflow-y: auto; display: block; }
+        #text-editor { width: 100%; min-height: 100%; height: max-content; border: none; outline: none; font-size: 16px; line-height: 32px; color: var(--note-text); background: repeating-linear-gradient(transparent, transparent 31px, var(--note-line) 31px, var(--note-line) 32px); background-attachment: local; background-color: transparent; overflow: visible; white-space: pre-wrap; word-wrap: break-word; }
+        #text-editor img { border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; max-width: 100%; height: auto; }
+        .img-inline { display: inline-block; margin: 5px; vertical-align: top; }
+        .img-center { display: block; margin: 20px auto; clear: both; }
+
+        #canvas-editor { position: absolute; top: 0; left: 0; z-index: 5; display: block; pointer-events: none; }
+        #resize-overlay { position: absolute; outline: 2px solid var(--accent-color); z-index: 10; pointer-events: none; display: none; }
+        .resize-handle { width: 12px; height: 12px; background: white; border: 2px solid var(--accent-color); position: absolute; border-radius: 50%; pointer-events: auto; }
+        .resize-handle.nw { top: -7px; left: -7px; cursor: nw-resize; } .resize-handle.se { bottom: -7px; right: -7px; cursor: se-resize; }
+
+        .signature { position: fixed; bottom: 15px; right: 25px; text-align: right; font-size: 12px; color: #888; pointer-events: none; }
+
+        /* 모달 스타일 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 450px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        
+        /* 성경 모달 */
+        .bible-search-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .bible-search-row select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; background: #f9f9fb; cursor: pointer; flex: 1; }
+        .bible-search-row select:focus { border-color: #9b59b6; background: #fff; }
+        #bible-preview { height: 220px; overflow-y: auto; background: #f9f9f9; border: 1px solid #eee; padding: 15px; font-size: 15px; line-height: 1.8; border-radius: 6px; margin-bottom: 15px; white-space: pre-wrap; color: #444; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
+        .bible-data-info { font-size: 12px; color: #27ae60; margin-top: 8px; text-align: center; font-weight: bold; }
+
+        .list-modal-content { width: 550px; max-height: 85vh; display: flex; flex-direction: column; }
+        .search-container { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .search-container select, .search-container input { padding: 10px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 14px; }
+        .list-container { overflow-y: auto; flex-grow: 1; max-height: 60vh; border-top: 1px solid #eee; padding-top: 10px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; border-radius: 6px; margin-bottom: 4px; }
+        .list-item:hover { background: #f4f8ff; }
+        .list-item-info { display: flex; flex-direction: column; overflow: hidden; }
+        .list-item-title { font-weight: bold; color: var(--accent-color); font-size: 15px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .list-item-meta { font-size: 12px; color: #777; }
+        .btn-delete-note { background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; min-width: 50px; margin-left: 10px; }
+        
+        .hidden { display: none !important; }
+        body.focus-mode header, body.focus-mode .toolbar { display: none !important; }
+        body.focus-mode main { padding: 0 !important; }
+        body.focus-mode .page-container { padding: 15px !important; margin: 0 !important; max-width: none !important; }
+        .btn-exit-focus { position: fixed; bottom: 20px; left: 20px; z-index: 1001; background: #2c3e50; color: white; padding: 12px 20px; border-radius: 30px; display: none; border: none; font-weight: bold; cursor: pointer; }
+        body.focus-mode .btn-exit-focus { display: block; }
+        #floating-toolbar { position: fixed; z-index: 9999; background: #2c3e50; border-radius: 8px; padding: 5px; display: flex; gap: 5px; transform: translateX(-50%); }
+        #floating-toolbar button, #floating-toolbar input { background: transparent; color: white; border: none; padding: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Piltong Note</div>
+        <div class="header-btns">
+            <input type="file" id="file-loader" class="hidden" accept=".json" onchange="loadFromJson(this)">
+            <input type="file" id="image-loader" class="hidden" accept="image/*" onchange="insertImage(this)">
+            <input type="file" id="bible-data-manual-loader" class="hidden" accept=".json" onchange="handleManualBibleUpload(this)">
+
+            <button onclick="openBibleModal()" class="btn-bible">📖 성경본문 넣기</button>
+            <button onclick="toggleFocusMode()" class="btn-focus">🔍 넓게보기</button>
+            <button onclick="startNewNote()">새글</button>
+            <button onclick="document.getElementById('file-loader').click()">불러오기</button>
+            <button onclick="openSaveModal()" style="background-color: var(--accent-color);">저장</button>
+            <button onclick="openNoteListModal()" class="btn-highlight">📝 목록</button>
+            <button onclick="printNote()" class="btn-print">🖨️</button>
+        </div>
+    </header>
+
+    <div class="toolbar">
+        <div class="meta-info">
+            <input type="date" id="doc-date">
+            <input type="text" id="doc-location" placeholder="장소">
+            <input type="text" id="doc-title" class="title-input" placeholder="제목을 입력하세요">
+            <select id="folder-select"><option>기본 폴더</option></select>
+            <button onclick="addNewFolder()">+ 새 폴더</button>
+        </div>
+        <div class="mode-tools">
+            <div class="btn-group">
+                <button id="btn-kb" class="active" onclick="setMode('keyboard')">⌨️ 키보드</button>
+                <button id="btn-draw" onclick="setMode('draw')">🎨 그리기</button>
+            </div>
+            <div id="text-tools" class="dynamic-controls">
+                <select onchange="formatTextValue(event, 'fontName', this.value)" title="글꼴">
+                    <option value="Pretendard, sans-serif">기본 서체</option><option value="'Noto Serif KR', serif">바탕체 (명조)</option><option value="'Nanum Pen Script', cursive">손글씨</option>
+                </select>
+                <select onchange="formatTextValue(event, 'fontSize', this.value)" title="크기">
+                    <option value="2">작게</option><option value="3" selected>보통</option><option value="4">크게</option><option value="6">아주크게</option>
+                </select>
+                <input type="color" onchange="formatTextValue(event, 'foreColor', this.value)" value="#000000" title="색상">
+                <span style="color: #ccc; margin: 0 5px;">|</span>
+                <button onmousedown="formatText(event, 'bold')"><b>B</b></button>
+                <button onmousedown="formatText(event, 'italic')"><i>I</i></button>
+                <button onmousedown="formatText(event, 'underline')"><u>U</u></button>
+                <span style="color: #ccc; margin: 0 5px;">|</span>
+                <button onclick="document.getElementById('image-loader').click()">🖼️ 사진</button>
+            </div>
+            <div id="image-tools" class="dynamic-controls hidden">
+                <button onclick="changeImageAlignment('inline')">🔲</button>
+                <button onclick="changeImageAlignment('left')">👈</button>
+                <button onclick="changeImageAlignment('center')">⬛</button>
+                <button onclick="changeImageAlignment('right')">👉</button>
+                <button onclick="removeSelectedImage()" style="color: #e74c3c;">🗑️ 삭제</button>
+            </div>
+            <div id="draw-tools" class="hidden dynamic-controls">
+                <button id="tool-pen" class="active-tool" onclick="setDrawTool('pen')">🖌️ 펜</button>
+                <button id="tool-eraser" onclick="setDrawTool('eraser')">🧹 지우개</button>
+                <input type="color" id="pen-color" value="#000000">
+                <input type="range" id="pen-size" min="1" max="50" value="3">
+                <button onclick="clearCanvas()" style="color: #e74c3c;">지우기</button>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        <div class="page-container" id="printable-page">
+            <div class="editor-wrapper" id="editor-wrapper">
+                <div id="text-editor" contenteditable="true" spellcheck="false"></div>
+                <canvas id="canvas-editor"></canvas>
+                <div id="resize-overlay"><div class="resize-handle nw" data-handle="nw"></div><div class="resize-handle se" data-handle="se"></div></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 📖 만능 성경 모달 -->
+    <div id="bible-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #2c3e50; border-bottom: 2px solid #9b59b6; padding-bottom: 10px;">📖 성경본문 찾기 (개역개정)</h3>
+            
+            <!-- 자동 설치 존 -->
+            <div id="bible-load-zone" style="margin-bottom:15px; background:#f4f4f7; padding:15px; border-radius:6px; border:1px solid #d1d1d1; text-align: center;">
+                <p style="font-size:14px; margin:0 0 10px 0; color:#c0392b; font-weight:bold;">⚠️ 성경 데이터가 설치되지 않았습니다.</p>
+                <p style="font-size:12px; color:#555; margin-bottom: 15px; line-height: 1.4;">
+                    저작권 보호로 인해 앱에 기본 내장할 수 없습니다.<br>
+                    아래 버튼을 눌러 인터넷에 생존해 있는 링크를 자동으로 찾아서 연결합니다.
+                </p>
+                <button id="btn-auto-install" onclick="fetchAndInstallBible()" style="width:100%; padding:12px; background:#2980b9; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:14px; margin-bottom: 10px;">
+                    ✨ 개역개정 데이터 자동 다운로드 및 설치
+                </button>
+                <div style="font-size: 11px; color: #888; margin-top: 10px; line-height: 1.5;">
+                    ※ 혹시 자동 설치가 모두 막혔다면, 구글에서 <b>'개역개정 json 다운로드'</b>를 검색해서 아무 파일이나 받은 후 <span style="text-decoration:underline; cursor:pointer; color:#9b59b6; font-weight:bold;" onclick="document.getElementById('bible-data-manual-loader').click()">[여기]를 눌러 수동으로 선택</span>하세요. (만능 변환기가 작동합니다)
+                </div>
+            </div>
+
+            <!-- 스마트 검색 드롭다운 UI -->
+            <div id="bible-search-ui" class="hidden">
+                <div class="bible-search-row">
+                    <select id="bible-book" style="flex:1.5;"><option value="">📖 성경 책 선택</option></select>
+                    <select id="bible-chapter" style="flex:1;"><option value="">장 선택</option></select>
+                </div>
+                <div class="bible-search-row">
+                    <select id="bible-verse-start" style="flex:1;"><option value="">시작 절</option></select>
+                    <span style="align-self:center; font-weight:bold; color:#777;">~</span>
+                    <select id="bible-verse-end" style="flex:1;"><option value="">끝 절 (선택)</option></select>
+                    <button onclick="searchBible()" style="flex:1; background:#9b59b6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">검색 🔍</button>
+                </div>
+            </div>
+            
+            <div id="bible-preview">본문을 검색하면 이곳에 미리보기가 나타납니다.</div>
+            
+            <div style="display:flex; gap:10px;">
+                <button onclick="insertBibleToNote()" style="flex:2; padding:12px; background:var(--accent-color); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size: 15px;">노트에 본문 넣기 (확인)</button>
+                <button onclick="closeBibleModal()" style="flex:1; padding:12px; background:#eee; border:none; border-radius:6px; cursor:pointer; font-size: 15px;">닫기</button>
+            </div>
+            <p class="bible-data-info" id="bible-status">데이터 연결 대기중...</p>
+        </div>
+    </div>
+
+    <!-- 기존 저장 및 목록 모달 -->
+    <div id="save-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>노트 저장</h3>
+            <button onclick="saveToListOnly()" style="width:100%; padding:12px; margin-bottom:20px; background:var(--accent-color); color:white; border:none; border-radius:4px; font-weight: bold;">앱 내부 목록에 저장 (덮어쓰기)</button>
+            <hr style="border: 0; border-top: 1px solid #ddd; margin-bottom: 15px;">
+            <button onclick="saveFile('json')" style="width:100%; padding:10px; background:#34495e; color:white; border:none; border-radius:4px;">파일로 내려받기 (.json)</button>
+            <button onclick="closeSaveModal()" style="width:100%; padding:8px; margin-top:10px; background: white; border:1px solid #ccc; border-radius:4px;">닫기</button>
+        </div>
+    </div>
+
+    <div id="list-modal" class="modal-overlay">
+        <div class="modal-content list-modal-content">
+            <div class="list-header"><h3>저장된 노트 목록</h3><button onclick="closeNoteListModal()">닫기</button></div>
+            <div class="search-container">
+                <select id="list-folder-filter"><option value="all">📁 전체 보기</option></select>
+                <input type="text" id="note-search-input" placeholder="🔍 검색어 입력...">
+            </div>
+            <div id="note-list-container" class="list-container"></div>
+        </div>
+    </div>
+
+    <div id="floating-toolbar" class="hidden">
+        <button onmousedown="formatText(event, 'bold')"><b>B</b></button>
+        <button onmousedown="formatText(event, 'italic')"><i>I</i></button>
+        <button onmousedown="formatText(event, 'underline')"><u>U</u></button>
+        <input type="color" onchange="formatTextValue(event, 'foreColor', this.value)">
+    </div>
+
+    <button class="btn-exit-focus" onclick="toggleFocusMode()">🔙 메뉴 다시보기</button>
+    <div class="signature">made by piltong pastor</div>
+
+    <script>
+        // =========================================================
+        // 📖 성경 데이터 통합 로직 (자동설치 + 만능 파서)
+        // =========================================================
+        let bibleData = null;
+        const BIBLE_DB_NAME = "BibleDB";
+        const BIBLE_STORE_NAME = "BibleStore";
+        
+        const bibleBooks = [
+            "창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기", "사무엘상", "사무엘하", 
+            "열왕기상", "열왕기하", "역대상", "역대하", "에스라", "느헤미야", "에스더", "욥기", "시편", "잠언", 
+            "전도서", "아가", "이사야", "예레미야", "예레미야 애가", "에스겔", "다니엘", "호세아", "요엘", "아모스", 
+            "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기",
+            "마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", "고린도후서", "갈라디아서", "에베소서", 
+            "빌립보서", "골로새서", "데살로니가전서", "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", "야고보서", 
+            "베드로전서", "베드로후서", "요한일서", "요한이서", "요한삼서", "유다서", "요한계시록"
+        ];
+
+        function initBibleDB() {
+            const request = indexedDB.open(BIBLE_DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(BIBLE_STORE_NAME)) db.createObjectStore(BIBLE_STORE_NAME);
+            };
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                const transaction = db.transaction(BIBLE_STORE_NAME, "readonly");
+                const store = transaction.objectStore(BIBLE_STORE_NAME);
+                const getRequest = store.get("rnkv");
+                getRequest.onsuccess = () => {
+                    if (getRequest.result) {
+                        bibleData = getRequest.result;
+                        onBibleLoaded();
+                    }
+                };
+            };
+        }
+
+        // 💡 아무 JSON이나 넣어도 표준 포맷({b, c, v, t})으로 변환하는 만능 정규화 함수
+        function normalizeBibleData(rawData) {
+            let normalized = [];
+            try {
+                if (Array.isArray(rawData)) {
+                    let first = rawData.find(item => item && typeof item === 'object');
+                    if(!first) throw new Error("데이터 오류");
+
+                    // 파일마다 다를 수 있는 키값(b, book, chapter 등)을 자동으로 찾아냄
+                    let keyB = first.b !== undefined ? 'b' : (first.book !== undefined ? 'book' : 'book_name');
+                    let keyC = first.c !== undefined ? 'c' : 'chapter';
+                    let keyV = first.v !== undefined ? 'v' : 'verse';
+                    let keyT = first.t !== undefined ? 't' : (first.content !== undefined ? 'content' : (first.text !== undefined ? 'text' : 'message'));
+
+                    rawData.forEach(item => {
+                        normalized.push({ b: parseInt(item[keyB]), c: parseInt(item[keyC]), v: parseInt(item[keyV]), t: String(item[keyT]) });
+                    });
+                } else if (typeof rawData === 'object') {
+                    // 객체 형태 {"1": {"1": {"1": "태초에..."}}} 해석
+                    for (let b in rawData) {
+                        if(typeof rawData[b] === 'object') {
+                            for (let c in rawData[b]) {
+                                if(typeof rawData[b][c] === 'object') {
+                                    for (let v in rawData[b][c]) {
+                                        normalized.push({ b: parseInt(b), c: parseInt(c), v: parseInt(v), t: String(rawData[b][c][v]) });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if(normalized.length > 1000) return normalized; // 검증: 성경 데이터가 맞다면 구절이 1000개는 넘어야 함
+                else throw new Error("올바른 성경 데이터가 아닙니다.");
+            } catch(e) {
+                console.error("정규화 실패:", e);
+                return null;
+            }
+        }
+
+        // 💡 예비 링크 3곳을 차례대로 찔러보는 우회 다운로드 로직
+        async function fetchAndInstallBible() {
+            const btn = document.getElementById('btn-auto-install');
+            btn.innerText = "⏳ 살아있는 링크 찾는 중... (조금만 기다려주세요)";
+            btn.disabled = true; btn.style.background = "#7f8c8d";
+            
+            // 아직 살아있을 확률이 높은 깃허브 링크들 배열
+            const urlsToTry = [
+                'https://raw.githubusercontent.com/simnalamburt/bible-sqlite/master/json/ko_rnksv.json',
+                'https://raw.githubusercontent.com/yesu/Bible-JSON/master/rnksv.json',
+                'https://raw.githubusercontent.com/bloodguy/Bible/master/json/rnksv.json'
+            ];
+
+            let successData = null;
+
+            for (let url of urlsToTry) {
+                try {
+                    const response = await fetch(url);
+                    if(response.ok) {
+                        const rawData = await response.json();
+                        successData = normalizeBibleData(rawData);
+                        if(successData) break; // 변환 성공하면 반복문 탈출
+                    }
+                } catch (e) { console.log("링크 막힘, 다음 링크 시도..."); }
+            }
+
+            if (successData) {
+                bibleData = successData;
+                saveBibleToDB(successData);
+                onBibleLoaded();
+                alert("🎉 살아있는 링크를 찾아 개역개정 데이터 자동 설치를 완료했습니다!");
+            } else {
+                alert("현재 인터넷상의 모든 자동 링크가 차단되었습니다. 😭\n번거로우시겠지만 안내에 따라 '수동 연결'을 이용해주세요.");
+                btn.innerText = "✨ 개역개정 데이터 자동 다운로드 및 설치";
+                btn.disabled = false; btn.style.background = "#2980b9";
+            }
+        }
+
+        // 수동 파일 업로드 시에도 만능 파서 적용
+        function handleManualBibleUpload(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const rawData = JSON.parse(e.target.result);
+                    const normalized = normalizeBibleData(rawData);
+                    
+                    if (normalized) {
+                        bibleData = normalized; saveBibleToDB(normalized); onBibleLoaded();
+                        alert("수동으로 성경 데이터가 완벽하게 변환되어 연결되었습니다!");
+                    } else {
+                        alert("이 파일은 노트가 읽을 수 없는 구조입니다. 구글에서 다른 JSON 파일을 받아보세요.");
+                    }
+                } catch (err) { alert("JSON 파일 형식이 아닙니다."); }
+            };
+            reader.readAsText(file); input.value = "";
+        }
+
+        function saveBibleToDB(data) {
+            const request = indexedDB.open(BIBLE_DB_NAME, 1);
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                const transaction = db.transaction(BIBLE_STORE_NAME, "readwrite");
+                const store = transaction.objectStore(BIBLE_STORE_NAME);
+                store.put(data, "rnkv");
+            };
+        }
+
+        function onBibleLoaded() {
+            document.getElementById('bible-load-zone').classList.add('hidden');
+            document.getElementById('bible-search-ui').classList.remove('hidden');
+            document.getElementById('bible-status').innerText = "✅ 개역개정 데이터가 완벽하게 준비되었습니다.";
+            
+            const bookSelect = document.getElementById('bible-book');
+            bookSelect.innerHTML = '<option value="">📖 성경 책 선택</option>';
+            bibleBooks.forEach((name, index) => {
+                const opt = document.createElement('option');
+                opt.value = index + 1;
+                opt.innerText = name;
+                bookSelect.appendChild(opt);
+            });
+        }
+
+        // 스마트 드롭다운 로직 (책 -> 장)
+        document.getElementById('bible-book').addEventListener('change', function() {
+            const b = parseInt(this.value);
+            const chapSelect = document.getElementById('bible-chapter');
+            const vStart = document.getElementById('bible-verse-start');
+            const vEnd = document.getElementById('bible-verse-end');
+            
+            chapSelect.innerHTML = '<option value="">장 선택</option>';
+            vStart.innerHTML = '<option value="">시작 절</option>';
+            vEnd.innerHTML = '<option value="">끝 절 (선택)</option>';
+
+            if(!b || !bibleData) return;
+            const chapters = [...new Set(bibleData.filter(item => item.b === b).map(item => item.c))];
+            chapters.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.innerText = `${c}장`; chapSelect.appendChild(opt); });
+        });
+
+        // 스마트 드롭다운 로직 (장 -> 절)
+        document.getElementById('bible-chapter').addEventListener('change', function() {
+            const b = parseInt(document.getElementById('bible-book').value);
+            const c = parseInt(this.value);
+            const vStart = document.getElementById('bible-verse-start');
+            const vEnd = document.getElementById('bible-verse-end');
+            
+            vStart.innerHTML = '<option value="">시작 절</option>';
+            vEnd.innerHTML = '<option value="">끝 절 (선택)</option>';
+
+            if(!b || !c || !bibleData) return;
+            const verses = bibleData.filter(item => item.b === b && item.c === c).map(item => item.v);
+            verses.forEach(v => {
+                const opt1 = document.createElement('option'); opt1.value = v; opt1.innerText = `${v}절`;
+                const opt2 = document.createElement('option'); opt2.value = v; opt2.innerText = `${v}절`;
+                vStart.appendChild(opt1); vEnd.appendChild(opt2);
+            });
+        });
+
+        function openBibleModal() { document.getElementById('bible-modal').style.display = 'flex'; }
+        function closeBibleModal() { document.getElementById('bible-modal').style.display = 'none'; }
+
+        function searchBible() {
+            if (!bibleData) return alert("데이터가 로드되지 않았습니다.");
+            const b = parseInt(document.getElementById('bible-book').value);
+            const c = parseInt(document.getElementById('bible-chapter').value);
+            const vs = parseInt(document.getElementById('bible-verse-start').value);
+            let ve = parseInt(document.getElementById('bible-verse-end').value);
+
+            if (!b || !c || !vs) return alert("성경 책, 장, 시작 절을 선택해주세요.");
+            if (!ve || ve < vs) ve = vs;
+
+            const results = bibleData.filter(item => item.b === b && item.c === c && item.v >= vs && item.v <= ve);
+            if (results.length === 0) document.getElementById('bible-preview').innerText = "해당 구절을 찾을 수 없습니다.";
+            else {
+                const bookName = bibleBooks[b-1];
+                let fullText = `[${bookName} ${c}:${vs}${ve > vs ? '-' + ve : ''}]\n`;
+                results.forEach(item => { fullText += `${item.v}. ${item.t}\n`; });
+                document.getElementById('bible-preview').innerText = fullText;
+            }
+        }
+
+        function insertBibleToNote() {
+            const text = document.getElementById('bible-preview').innerText;
+            if (text.startsWith("본문을") || text.startsWith("해당")) return alert("먼저 성경 본문을 검색해주세요.");
+            textEditor.focus();
+            document.execCommand('insertText', false, "\n" + text + "\n\n");
+            closeBibleModal(); triggerAutoSave();
+        }
+
+        // =========================================================
+        // 기존 노트 앱 통합 로직
+        // =========================================================
+        let isManualTitle = false;
+        let folders = ["기본 폴더"];
+        let selectedImage = null;
+        let isResizing = false;
+        let resizeData = { startX: 0, startWidth: 0, startHeight: 0, aspectRatio: 0, currentHandle: null };
+        let currentDrawTool = 'pen'; 
+        let lastImageWidth = 300; 
+        let currentNoteId = null;
+        let cachedCanvasData = ""; 
+
+        const canvas = document.getElementById('canvas-editor');
+        const ctx = canvas.getContext('2d');
+        const textEditor = document.getElementById('text-editor');
+        const editorWrapper = document.getElementById('editor-wrapper');
+        const folderSelect = document.getElementById('folder-select');
+        const resizeOverlay = document.getElementById('resize-overlay');
+        const floatingToolbar = document.getElementById('floating-toolbar');
+
+        folderSelect.addEventListener('change', (e) => { localStorage.setItem('piltong_last_folder', e.target.value); triggerAutoSave(); });
+
+        const resizeObserver = new ResizeObserver(() => {
+            if(textEditor.offsetWidth === 0) return; 
+            if(canvas.width !== textEditor.offsetWidth || canvas.height !== textEditor.scrollHeight) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                canvas.width = textEditor.offsetWidth;
+                canvas.height = Math.max(editorWrapper.clientHeight, textEditor.scrollHeight);
+                ctx.drawImage(tempCanvas, 0, 0);
+                cachedCanvasData = canvas.toDataURL(); 
+            }
+        });
+        resizeObserver.observe(textEditor);
+
+        function loadCanvasData(dataUrl) {
+            if (!dataUrl || dataUrl === "data:,") { ctx.clearRect(0, 0, canvas.width, canvas.height); cachedCanvasData = ""; return; }
+            const img = new Image(); img.onload = () => { ctx.clearRect(0,0,canvas.width, canvas.height); ctx.drawImage(img, 0, 0); cachedCanvasData = dataUrl; }; img.src = dataUrl; 
+        }
+
+        function formatTextValue(e, cmd, value) { if(e) e.preventDefault(); textEditor.focus(); document.execCommand(cmd, false, value); triggerAutoSave(); }
+        function formatText(e, cmd) { e.preventDefault(); document.execCommand(cmd, false, null); triggerAutoSave(); }
+
+        function startNewNote() {
+            if (confirm("새 글을 쓰시겠습니까?")) {
+                currentNoteId = Date.now(); localStorage.setItem('piltong_last_active_note', currentNoteId); 
+                document.getElementById('doc-title').value = ""; isManualTitle = false; 
+                document.getElementById('doc-date').valueAsDate = new Date(); textEditor.innerHTML = "";
+                ctx.clearRect(0, 0, canvas.width, canvas.height); cachedCanvasData = ""; 
+                deselectImage(); setMode('keyboard'); triggerAutoSave();
+            }
+        }
+
+        function insertImage(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if (w > 800) { h *= 800 / w; w = 800; }
+                    c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const compressed = c.toDataURL('image/jpeg', 0.7);
+                    textEditor.focus(); document.execCommand('insertHTML', false, `<img src="${compressed}" class="img-inline" style="width: 300px;" alt="사진"> `);
+                    triggerAutoSave();
+                };
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function saveToListOnly() { deselectImage(); autoSaveToLocal(); renderNoteList(document.getElementById('note-search-input').value); alert("목록에 저장되었습니다."); closeSaveModal(); }
+
+        function saveFile(format) {
+            deselectImage(); autoSaveToLocal(); 
+            const dv = document.getElementById('doc-date').value, fv = folderSelect.value, tv = document.getElementById('doc-title').value || "제목없음";
+            let blob, fn;
+            if (format === 'json') {
+                const data = { id: currentNoteId, title: tv, date: dv, location: document.getElementById('doc-location').value, folder: fv, htmlContent: textEditor.innerHTML, canvasData: cachedCanvasData, mode: document.getElementById('btn-kb').classList.contains('active') ? 'keyboard' : 'draw' };
+                blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); fn = `note_${tv}.json`;
+            } else { blob = new Blob([textEditor.innerText], {type: "text/plain"}); fn = `${tv}.txt`; }
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = fn; link.click(); closeSaveModal();
+        }
+
+        function autoSaveToLocal() {
+            const tv = document.getElementById('doc-title').value.trim() || "자동저장된 노트";
+            if (!currentNoteId) currentNoteId = Date.now();
+            const data = { id: currentNoteId, saveTime: new Date().toLocaleTimeString(), title: tv, date: document.getElementById('doc-date').value, location: document.getElementById('doc-location').value, folder: folderSelect.value, htmlContent: textEditor.innerHTML, canvasData: cachedCanvasData, mode: document.getElementById('btn-kb').classList.contains('active') ? 'keyboard' : 'draw' };
+            try {
+                let saved = JSON.parse(localStorage.getItem('piltong_notes') || '[]');
+                saved = saved.filter(n => n.id !== currentNoteId); saved.push(data);
+                localStorage.setItem('piltong_notes', JSON.stringify(saved));
+                localStorage.setItem('piltong_last_active_note', currentNoteId);
+            } catch(e) {}
+        }
+
+        let autoSaveTimer;
+        function triggerAutoSave() { clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(autoSaveToLocal, 1500); }
+
+        textEditor.addEventListener('input', () => {
+            if (!isManualTitle) {
+                const firstLine = textEditor.innerText.split('\n').find(l => l.trim() !== "");
+                if (firstLine) document.getElementById('doc-title').value = firstLine.substring(0, 40);
+            }
+            triggerAutoSave();
+        });
+        document.getElementById('doc-title').addEventListener('input', () => { isManualTitle = true; triggerAutoSave(); });
+
+        function toggleFocusMode() { document.body.classList.toggle('focus-mode'); setTimeout(() => canvas.width = textEditor.offsetWidth, 300); }
+        function openSaveModal() { document.getElementById('save-modal').style.display = 'flex'; }
+        function closeSaveModal() { document.getElementById('save-modal').style.display = 'none'; }
+        function updateFolderDropdown() { folderSelect.innerHTML = ""; folders.forEach(f => { const opt = document.createElement('option'); opt.value = f; opt.innerText = f; folderSelect.appendChild(opt); }); }
+        function addNewFolder() { const n = prompt("새 폴더 이름:"); if(n) { folders.push(n); localStorage.setItem('piltong_folders', JSON.stringify(folders)); updateFolderDropdown(); } }
+        
+        function openNoteListModal() { 
+            const filter = document.getElementById('list-folder-filter'); filter.innerHTML = '<option value="all">📁 전체 보기</option>';
+            folders.forEach(f => filter.innerHTML += `<option value="${f}">📁 ${f}</option>`);
+            renderNoteList(); document.getElementById('list-modal').style.display = 'flex'; 
+        }
+        function closeNoteListModal() { document.getElementById('list-modal').style.display = 'none'; }
+        
+        function renderNoteList(q = '') {
+            const container = document.getElementById('note-list-container'); container.innerHTML = '';
+            let saved = JSON.parse(localStorage.getItem('piltong_notes') || '[]');
+            const f = document.getElementById('list-folder-filter').value;
+            if (f !== 'all') saved = saved.filter(n => (n.folder || '기본 폴더') === f);
+            if (q) saved = saved.filter(n => n.title.includes(q) || n.htmlContent.includes(q));
+            saved.reverse().forEach(n => {
+                const item = document.createElement('div'); item.className = 'list-item';
+                item.innerHTML = `<div class="list-item-info"><div class="list-item-title">${n.title}</div><div class="list-item-meta">${n.date} | ${n.folder}</div></div><button class="btn-delete-note" onclick="deleteNote(${n.id}, event)">삭제</button>`;
+                item.onclick = () => { loadNoteFromLocal(n.id); closeNoteListModal(); }; container.appendChild(item);
+            });
+        }
+        
+        function loadNoteFromLocal(id) {
+            const saved = JSON.parse(localStorage.getItem('piltong_notes') || '[]');
+            const n = saved.find(i => i.id === id); if(!n) return;
+            currentNoteId = n.id; document.getElementById('doc-title').value = n.title; document.getElementById('doc-date').value = n.date;
+            document.getElementById('doc-location').value = n.location; folderSelect.value = n.folder; textEditor.innerHTML = n.htmlContent;
+            loadCanvasData(n.canvasData); setMode(n.mode); isManualTitle = true;
+        }
+        
+        function deleteNote(id, e) { e.stopPropagation(); if(confirm("삭제할까요?")) { let s = JSON.parse(localStorage.getItem('piltong_notes') || '[]'); s = s.filter(n => n.id !== id); localStorage.setItem('piltong_notes', JSON.stringify(s)); renderNoteList(); } }
+        
+        function setMode(m) {
+            document.getElementById('btn-kb').classList.toggle('active', m === 'keyboard'); document.getElementById('btn-draw').classList.toggle('active', m !== 'keyboard');
+            textEditor.setAttribute('contenteditable', m === 'keyboard'); canvas.style.pointerEvents = m === 'keyboard' ? 'none' : 'auto';
+            document.getElementById('text-tools').classList.toggle('hidden', m !== 'keyboard'); document.getElementById('draw-tools').classList.toggle('hidden', m === 'keyboard');
+        }
+        
+        function setDrawTool(t) { currentDrawTool = t; document.getElementById('tool-pen').classList.toggle('active-tool', t==='pen'); document.getElementById('tool-eraser').classList.toggle('active-tool', t==='eraser'); }
+        function clearCanvas() { if(confirm("그림을 지울까요?")) { ctx.clearRect(0,0,canvas.width, canvas.height); cachedCanvasData = ""; triggerAutoSave(); } }
+        function deselectImage() { selectedImage = null; resizeOverlay.style.display = 'none'; }
+        function printNote() { deselectImage(); window.print(); }
+
+        let drawing = false;
+        canvas.addEventListener('mousedown', e => { if(currentDrawTool!=='none'){ drawing=true; ctx.beginPath(); const p=getPos(e); ctx.moveTo(p.x, p.y); } });
+        canvas.addEventListener('mousemove', e => { if(drawing){ const p=getPos(e); ctx.lineWidth=document.getElementById('pen-size').value; ctx.lineCap='round'; ctx.globalCompositeOperation=currentDrawTool==='eraser'?'destination-out':'source-over'; ctx.strokeStyle=document.getElementById('pen-color').value; ctx.lineTo(p.x, p.y); ctx.stroke(); } });
+        canvas.addEventListener('mouseup', () => { drawing=false; cachedCanvasData=canvas.toDataURL(); triggerAutoSave(); });
+        function getPos(e) { const r=canvas.getBoundingClientRect(); return { x: e.clientX-r.left, y: e.clientY-r.top }; }
+    </script>
+</body>
+</html>
